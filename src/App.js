@@ -247,26 +247,51 @@ export default function ProductGuru() {
     const history = [...messages, userMsg].map(m => ({ role: m.role, content: m.content }));
 
     setStatus("thinking");
-    console.log("Calling Claude with context:", systemPrompt.slice(0, 200));
     try {
       const res = await fetch("/api/anthropic", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 1000,
-          system: systemPrompt,
-          messages: history,
-        }),
-      });
-      const data = await res.json();
-      console.log("Claude Response", data);
-      const reply = data.content?.find(b => b.type === "text")?.text || "Sorry, I couldn't generate a response.";
-      setMessages(prev => [...prev, { role: "assistant", content: reply, nsHits }]);
-    } catch {
-      setMessages(prev => [...prev, { role: "assistant", content: "Something went wrong. Please try again.", nsHits: [] }]);
-    }
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 1000,
+      system: systemPrompt,
+      messages: history,
+      stream: true,
+      }),
+    });
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let fullText = "";
+
+    setMessages(prev => [...prev, { role: "assistant", content: "", nsHits }]);
     setStatus(null);
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const chunk = decoder.decode(value);
+      const lines = chunk.split("\n").filter(l => l.startsWith("data: "));
+      for (const line of lines) {
+        const data = line.replace("data: ", "");
+        if (data === "[DONE]") break;
+        try {
+        const parsed = JSON.parse(data);
+        const delta = parsed.delta?.text || "";
+        if (delta) {
+          fullText += delta;
+          setMessages(prev => prev.map((m, i) =>
+            i === prev.length - 1 ? { ...m, content: fullText } : m
+          ));
+        }
+      } catch { continue; }
+    }
+  }
+} catch (e) {
+  console.error("Claude error:", e);
+  setMessages(prev => [...prev, { role: "assistant", content: "Something went wrong. Please try again.", nsHits: [] }]);
+  setStatus(null);
+}
   };
 
   const isEmpty = messages.length === 0;

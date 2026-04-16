@@ -1,4 +1,4 @@
-export default async function handler(req, res) {
+  export default async function handler(req, res) {
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type");
@@ -11,8 +11,10 @@ export default async function handler(req, res) {
         "x-api-key": process.env.ANTHROPIC_API_KEY,
         "anthropic-version": "2023-06-01",
       },
-      body: JSON.stringify(req.body),
+      body: JSON.stringify({ ...req.body, stream: true }),
     });
-    const data = await response.json();
-    res.json(data);
+  
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    response.body.pipe(res);
   }
