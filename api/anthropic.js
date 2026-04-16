@@ -1,4 +1,4 @@
-  export default async function handler(req, res) {
+export default async function handler(req, res) {
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type");
@@ -16,5 +16,17 @@
   
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
-    response.body.pipe(res);
+    res.setHeader("Connection", "keep-alive");
+  
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+  
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const chunk = decoder.decode(value);
+      res.write(chunk);
+    }
+  
+    res.end();
   }
