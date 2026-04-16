@@ -1,10 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 
-// ─── CONFIG — replace these before deploying ───────────────────────────────
-const OPENAI_API_KEY   = "";  // leave empty
-const PINECONE_API_KEY = ""; // Pinecone is called directly from frontend so keep this for now
-const PINECONE_HOST    = ""; // keep this too
-const TOP_K            = 3; // chunks per namespace
+
 // ───────────────────────────────────────────────────────────────────────────
 
 const NAMESPACES = [
@@ -143,9 +139,11 @@ function buildContextPrompt(chunks) {
   for (const [ns, items] of Object.entries(grouped)) {
     const nsLabel = NAMESPACES.find(n => n.id === ns)?.label || ns;
     ctx += `**${nsLabel}:**\n`;
+    let block = "";
     items.forEach((item, i) => {
-      ctx += `[${i + 1}] Source: ${item.source}\n${item.text.slice(0, 600)}\n\n`;
+      block += `[${i + 1}] Source: ${item.source}\n${item.text.slice(0, 600)}\n\n`;
     });
+    ctx += block + "\n\n";
   }
   return ctx;
 }
